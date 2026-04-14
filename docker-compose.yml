@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ../pocketledger-backend
+      dockerfile: Dockerfile
+    command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ../pocketledger-backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - pocketledger
+    restart: always
+
+  frontend:
+    build:
+      context: ../pocketledger-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../pocketledger-frontend/src:/app/src
+    depends_on:
+      - api
+    networks:
+      - pocketledger
+    restart: always
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - pocketledger
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password} # Uses .env or default
+      POSTGRES_DB: pocketledger
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pocketledger
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - pocketledger
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  pocketledger:
+    driver: bridge
+
