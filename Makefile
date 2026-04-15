@@ -1,4 +1,4 @@
-.PHONY: up down restart build logs ps pull-all
+.PHONY: up down restart build logs ps pull-all migrate migrate-create seed test
 
 # Start all services in detached mode
 up:
@@ -21,27 +21,31 @@ build:
 logs:
 	docker compose logs -f
 
-# Run alembic migration
+# 1. RUN THIS FIRST to apply existing migrations
 migrate:
-	docker compose exec api alembic revision --autogenerate -m "add composite indexes, recurring transactions, notifications, audit logs"
+	docker compose exec api alembic upgrade head
+
+# 2. RUN THIS SECOND only when you change your models.py
+# Usage: make migrate-create msg="your message here"
+migrate-create:
+	docker compose exec api alembic revision --autogenerate -m "$(msg)"
 	docker compose exec api alembic upgrade head
 
 # Check status of containers
 ps:
 	docker compose ps
 
-# Seed command: populate db with initial data
-
+# Seed command
 seed:
 	docker compose exec api python -m app.seeds.default_categories
 
-# Pull the latest code for all application repos (Handy for polyrepos!)
+# Pull the latest code
 pull-all:
 	cd ../pocketledger-backend && git pull origin main
 	cd ../pocketledger-frontend && git pull origin main
 	cd ../pocketledger-mobile && git pull origin main
 	git pull origin main
 
-# Add this to initiate test
+# Run tests
 test:
 	docker compose exec api pytest tests -v
