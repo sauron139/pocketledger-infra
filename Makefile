@@ -42,3 +42,6 @@ pull-all:
 	cd ../pocketledger-mobile && git pull origin main
 	git pull origin main
 
+# Add this to initiate test
+test:
+	docker compose exec api pytest tests -v
