@@ -23,6 +23,7 @@ logs:
 
 # Run alembic migration
 migrate:
+	docker compose exec api alembic revision --autogenerate -m "add composite indexes, recurring transactions, notifications, audit logs"
 	docker compose exec api alembic upgrade head
 
 # Check status of containers
